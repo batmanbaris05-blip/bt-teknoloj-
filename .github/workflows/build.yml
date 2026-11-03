@@ -30,16 +30,23 @@ jobs:
           arduino-cli core install esp32:esp32
           arduino-cli lib install "Adafruit GFX Library" "Adafruit ST7735 and ST7789 Library"
 
-      - name: Derle (ESP32-S3, Minimal SPIFFS 1.9MB OTA)
+      - name: Derle - NORMAL (yerel OTA)
         run: |
           arduino-cli compile \
             --fqbn "esp32:esp32:esp32s3:PartitionScheme=min_spiffs" \
-            --output-dir build \
+            --output-dir build_normal \
             firmware/BT_Technology
-          echo "--- build ciktisi ---"
-          ls -la build
-          cp "build/BT_Technology.ino.bin" "BT_Technology.ino.bin"
-          echo "BIN boyutu:"; wc -c < BT_Technology.ino.bin
+          cp "build_normal/BT_Technology.ino.bin" "BT_Technology.ino.bin"
+          echo "NORMAL bin:"; wc -c < BT_Technology.ino.bin
+
+      - name: Derle - UZAKTAN (WiFi kur + internetten self-update)
+        run: |
+          arduino-cli compile \
+            --fqbn "esp32:esp32:esp32s3:PartitionScheme=min_spiffs" \
+            --output-dir build_uzaktan \
+            firmware/BT_Technology_UZAKTAN
+          cp "build_uzaktan/BT_Technology_UZAKTAN.ino.bin" "BT_Technology_UZAKTAN.ino.bin"
+          echo "UZAKTAN bin:"; wc -c < BT_Technology_UZAKTAN.ino.bin
 
       - name: Surum etiketini oku
         id: ver
@@ -52,5 +59,7 @@ jobs:
         with:
           tag_name: firmware
           name: "BT Technology firmware (son)"
-          body: "En son derlenmis firmware. Surum: ${{ steps.ver.outputs.surum }}. Telefona indir -> 192.168.4.1/update -> yukle."
-          files: BT_Technology.ino.bin
+          body: "En son derlenmis firmware. Surum: ${{ steps.ver.outputs.surum }}.\n- BT_Technology.ino.bin = NORMAL (yerel OTA)\n- BT_Technology_UZAKTAN.ino.bin = UZAKTAN (WiFi kur + internetten guncelleme)\nTelefona indir -> 192.168.4.1/update -> yukle."
+          files: |
+            BT_Technology.ino.bin
+            BT_Technology_UZAKTAN.ino.bin
