@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v40"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v41"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4485,14 +4485,21 @@ void bipKontrol(){ if(bzBitis && (long)(millis()-bzBitis)>=0) bipSus(); }
 //  kademe 2 (guclu)      : kesik kesik, aralik 220 -> 70 ms
 //  kademe 3 (cok guclu)  : kesintisiz ses
 bool ionicSurekli=false;
+unsigned long ionicTailBitis=0; // kademe 3 (en guclu) bitince ses biraz daha uzasin — "sonda uzun calma"
 void ionicSesGuncelle(int kademe, float v){
-  if(kademe==0){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
+  if(kademe==0){
+    if(ionicSurekli && millis()<ionicTailBitis){ if(digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH); return; } // kuyruk: hemen kesme
+    if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return;
+  }
   // kademe 3: birinci tonun DUZ/KESINTISIZ (surekli) hali. Histerezis: 2.8V altina dusunce cikar.
   if(kademe==3 || (ionicSurekli && v>=2.8f)){
     if(!ionicSurekli || digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH);
-    bzBitis=0; ionicSurekli=true; return;
+    bzBitis=0; ionicSurekli=true; ionicTailBitis=millis()+500; return;  // sonda ~0.5sn daha uzun calmasi icin damga
   }
-  if(ionicSurekli){ bipSus(); ionicSurekli=false; sonSesZamani=millis(); }
+  if(ionicSurekli){
+    if(millis()<ionicTailBitis){ if(digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH); return; } // hedef tepesinden cikinca ses hemen kesilmez, biraz uzar
+    bipSus(); ionicSurekli=false; sonSesZamani=millis();
+  }
   unsigned sure, periyot;
   if(kademe==1){            // zayif / ilk sinyal -> UZUN
     sure=350; periyot=430;
