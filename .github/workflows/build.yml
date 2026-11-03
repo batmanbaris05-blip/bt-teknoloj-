@@ -1,0 +1,56 @@
+name: Firmware Derle (.bin)
+
+# Her firmware degisikliginde otomatik calisir; elle de tetiklenebilir
+on:
+  push:
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # release olusturup .bin yukleyebilmek icin
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu al
+        uses: actions/checkout@v4
+
+      - name: Arduino CLI kur
+        uses: arduino/setup-arduino-cli@v2.0.0
+
+      - name: ESP32 cekirdegi + kutuphaneler
+        run: |
+          arduino-cli config init
+          arduino-cli config set network.connection_timeout 600s
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+          arduino-cli lib install "Adafruit GFX Library" "Adafruit ST7735 and ST7789 Library"
+
+      - name: Derle (ESP32-S3, Minimal SPIFFS 1.9MB OTA)
+        run: |
+          arduino-cli compile \
+            --fqbn "esp32:esp32:esp32s3:PartitionScheme=min_spiffs" \
+            --output-dir build \
+            firmware/BT_Technology
+          echo "--- build ciktisi ---"
+          ls -la build
+          cp "build/BT_Technology.ino.bin" "BT_Technology.ino.bin"
+          echo "BIN boyutu:"; wc -c < BT_Technology.ino.bin
+
+      - name: Surum etiketini oku
+        id: ver
+        run: |
+          V=$(grep -oP '#define SURUM "\K[^"]+' firmware/BT_Technology/BT_Technology.ino | head -1)
+          echo "surum=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Release olustur / guncelle (telefondan indirmek icin)
+        uses: softprops/action-gh-release@v2.0.8
+        with:
+          tag_name: firmware
+          name: "BT Technology firmware (son)"
+          body: "En son derlenmis firmware. Surum: ${{ steps.ver.outputs.surum }}. Telefona indir -> 192.168.4.1/update -> yukle."
+          files: BT_Technology.ino.bin
