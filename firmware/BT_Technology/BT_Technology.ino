@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v39"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v40"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5119,7 +5119,7 @@ void setup(){
   });
   server.onNotFound([](){server.send(404,"text/plain","Bulunamadi");});
   server.begin();Serial.println("[HTTP] Basladi");
-   // ===== ACILIS ANIMASYONU — Neon BT BUYUME (~3.5 sn, millis ile zamanli) =====
+   // ===== ACILIS ANIMASYONU — Neon BT BUYUME (~3.0 sn, millis ile zamanli) =====
    display.fillScreen(ST77XX_BLACK);
    // Sabit yazilar bir kez (daire/BT her kademede yeniden cizilir)
    display.setFont();
@@ -5131,7 +5131,7 @@ void setup(){
    display.fillCircle(80,46,36,ST77XX_WHITE); // beyaz daire
 
    unsigned long animBasla=millis();
-   const unsigned long ANIM_SURE=3500; // toplam gorunur acilis suresi
+   const unsigned long ANIM_SURE=3000; // toplam gorunur acilis suresi (3 sn)
    // Melodi (eski arpej) — acilis boyunca SURGUN dongu: bitince bastan calar
    int notalar[]={440,554,659,880,1109,1319,1760};
    int sure[]   ={90, 90, 90, 90, 90,  90,  200};
