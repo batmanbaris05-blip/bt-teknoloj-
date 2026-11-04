@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v41"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v42"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4487,27 +4487,12 @@ void bipKontrol(){ if(bzBitis && (long)(millis()-bzBitis)>=0) bipSus(); }
 bool ionicSurekli=false;
 unsigned long ionicTailBitis=0; // kademe 3 (en guclu) bitince ses biraz daha uzasin — "sonda uzun calma"
 void ionicSesGuncelle(int kademe, float v){
-  if(kademe==0){
-    if(ionicSurekli && millis()<ionicTailBitis){ if(digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH); return; } // kuyruk: hemen kesme
-    if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return;
-  }
-  // kademe 3: birinci tonun DUZ/KESINTISIZ (surekli) hali. Histerezis: 2.8V altina dusunce cikar.
-  if(kademe==3 || (ionicSurekli && v>=2.8f)){
-    if(!ionicSurekli || digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH);
-    bzBitis=0; ionicSurekli=true; ionicTailBitis=millis()+500; return;  // sonda ~0.5sn daha uzun calmasi icin damga
-  }
-  if(ionicSurekli){
-    if(millis()<ionicTailBitis){ if(digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH); return; } // hedef tepesinden cikinca ses hemen kesilmez, biraz uzar
-    bipSus(); ionicSurekli=false; sonSesZamani=millis();
-  }
-  unsigned sure, periyot;
-  if(kademe==1){            // zayif / ilk sinyal -> UZUN
-    sure=350; periyot=430;
-  }else{                    // kademe 2 -> orta (ayni)
-    float n2=constrain((v-1.5f)/1.5f,0.0f,1.0f);
-    sure=40;  periyot=220-(unsigned)(150*n2);
-  }
-  if(millis()-sonSesZamani>=periyot){ bip(sure); sonSesZamani=millis(); }
+  if(kademe==0){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
+  ionicSurekli=false; // TOK deseninde surekli ton yok
+  // ===== "TOK" sesi: her vurus ~95ms (aktif buzzer ~2.4kHz), sinyal guclendikce aralik kisalir =====
+  float gd=constrain((v-esikVoltaj)/(3.1f-esikVoltaj),0.0f,1.0f);  // 0=esikte (zayif) .. 1=cok guclu
+  unsigned periyot=(unsigned)(650.0f-490.0f*gd);                   // aralik: 650ms (zayif) -> 160ms (cok guclu)
+  if(millis()-sonSesZamani>=periyot){ bip(95); sonSesZamani=millis(); }  // tok!
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
