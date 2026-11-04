@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v42"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v43"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4485,7 +4485,8 @@ void bipKontrol(){ if(bzBitis && (long)(millis()-bzBitis)>=0) bipSus(); }
 //  kademe 2 (guclu)      : kesik kesik, aralik 220 -> 70 ms
 //  kademe 3 (cok guclu)  : kesintisiz ses
 bool ionicSurekli=false;
-unsigned long ionicTailBitis=0; // kademe 3 (en guclu) bitince ses biraz daha uzasin — "sonda uzun calma"
+unsigned long ionicTailBitis=0; // (kullanilmiyor) eski kuyruk degiskeni
+int ionicImza=-1; // HETELEME: IONIC'e girince "tok-tok-tok" imza sesi (yeni yazilim calisiyor mu kontrolu)
 void ionicSesGuncelle(int kademe, float v){
   if(kademe==0){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
   ionicSurekli=false; // TOK deseninde surekli ton yok
@@ -4667,7 +4668,7 @@ void ekraniCiz(bool radarGoster=true){
   if(anaMod!=sonAnaMod || manuelGirisBitti!=sonManuelBitti || tamYenile){
     tamYenile=false; ekranYeni=true;
     halkasCizildi=false; sonADeg=-1; // radar halkalari yeniden cizilsin
-    if(sonAnaMod==1 && anaMod!=1){ bipSus(); ionicSurekli=false; } // IONIC'ten cikarken sesi kesinlikle sustur
+    if(sonAnaMod==1 && anaMod!=1){ bipSus(); ionicSurekli=false; ionicImza=-1; } // IONIC'ten cikarken sesi kesinlikle sustur + imzayi sifirla
     display.fillScreen(ST77XX_BLACK);
     sonAnaMod=anaMod;
     sonManuelBitti=manuelGirisBitti;
@@ -5214,7 +5215,9 @@ void loop(){
     }
     else{frekansUret(0);bipSus();ionicSurekli=false;anaMod=(anaMod==0)?menuSecim:0;suankiHane=0;manuelGirisBitti=false;}
     tik();ekraniCiz(false);}    // buton: sadece kisa 'tik'
-  if(anaMod==1){suzulmusVoltaj=(suzulmusVoltaj*0.75f)+(max(0.0f,((analogRead(sensorPin)*3.3f)/4095.0f)-0.2f)*0.25f); // taban 0.75 -> 0.2: tavan artik 3.1V'a kadar cikabiliyor, 3.0V kademesine ulasilabiliyor
+  if(anaMod==1){
+    if(ionicImza!=1){ ionicImza=1; bipBekle(95);delay(90);bipBekle(95);delay(90);bipBekle(95); } // HETELEME imzasi: girince tok-tok-tok
+    suzulmusVoltaj=(suzulmusVoltaj*0.75f)+(max(0.0f,((analogRead(sensorPin)*3.3f)/4095.0f)-0.2f)*0.25f); // taban 0.75 -> 0.2: tavan artik 3.1V'a kadar cikabiliyor, 3.0V kademesine ulasilabiliyor
     float lrlKalibreliV = max(0.0f, suzulmusVoltaj - groundOffset); // kalibrasyon (zemin sifirlama) artik gercekten uygulaniyor
     // 3 KADEME SES: zayif=hizlanan bip, guclu=hizlanan kesik, cok guclu=surekli
     int kademe = lrlKalibreliV<esikVoltaj ? 0 : lrlKalibreliV<1.5f ? 1 : lrlKalibreliV<3.0f ? 2 : 3;
