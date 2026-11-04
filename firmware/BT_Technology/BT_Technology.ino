@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v43"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v44"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4468,8 +4468,8 @@ String otaHataSebep(){
   return s;
 }
 
-// ══ 12V AKTIF BUZZER ══
-// Buzzer kendi tonunu uretir; ESP32 sadece ac/kapa yapar (GPIO7 -> transistor/MOSFET -> 12V buzzer).
+// ══ 5V AKTIF BUZZER ══
+// Buzzer kendi tonunu uretir; ESP32 sadece ac/kapa yapar (GPIO7 -> transistor/MOSFET -> 5V buzzer).
 // tone() KULLANILMAZ: aktif buzzer'a frekans gondermek sesi bozar.
 unsigned long bzBitis=0;
 void bip(unsigned ms){ digitalWrite(buzzerPin,HIGH); bzBitis=millis()+ms; if(bzBitis==0)bzBitis=1; }
@@ -4489,11 +4489,21 @@ unsigned long ionicTailBitis=0; // (kullanilmiyor) eski kuyruk degiskeni
 int ionicImza=-1; // HETELEME: IONIC'e girince "tok-tok-tok" imza sesi (yeni yazilim calisiyor mu kontrolu)
 void ionicSesGuncelle(int kademe, float v){
   if(kademe==0){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
-  ionicSurekli=false; // TOK deseninde surekli ton yok
-  // ===== "TOK" sesi: her vurus ~95ms (aktif buzzer ~2.4kHz), sinyal guclendikce aralik kisalir =====
-  float gd=constrain((v-esikVoltaj)/(3.1f-esikVoltaj),0.0f,1.0f);  // 0=esikte (zayif) .. 1=cok guclu
-  unsigned periyot=(unsigned)(650.0f-490.0f*gd);                   // aralik: 650ms (zayif) -> 160ms (cok guclu)
-  if(millis()-sonSesZamani>=periyot){ bip(95); sonSesZamani=millis(); }  // tok!
+  // ===== 3 KADEME: tik 100ms; K1 arasi uzun, K2 hizlanan, K3 kesintisiz =====
+  // KADEME 3 (cok guclu): kesintisiz surekli ton (histerezis 2.8V)
+  if(kademe==3 || (ionicSurekli && v>=2.8f)){
+    if(!ionicSurekli || digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH);
+    bzBitis=0; ionicSurekli=true; return;
+  }
+  if(ionicSurekli){ bipSus(); ionicSurekli=false; sonSesZamani=millis(); }
+  unsigned periyot;
+  if(kademe==1){            // KADEME 1 (zayif): tik-tik arasi UZUN
+    periyot=600;
+  }else{                    // KADEME 2 (guclu): hizlanan tik (220 -> 120 ms)
+    float n2=constrain((v-1.5f)/1.5f,0.0f,1.0f);
+    periyot=(unsigned)(220-100*n2);
+  }
+  if(millis()-sonSesZamani>=periyot){ bip(100); sonSesZamani=millis(); } // her tik 100ms
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
