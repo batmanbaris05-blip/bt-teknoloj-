@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v46"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v47"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4495,8 +4495,8 @@ void ionicSesGuncelle(int kademe, float v){
     bzBitis=0; ionicSurekli=true; return;
   }
   if(ionicSurekli){ bipSus(); ionicSurekli=false; sonSesZamani=millis(); }
-  unsigned b = (v<1.2f) ? 500 : (v<2.1f ? 300 : 180); // net bip icin aralik (hizlanan)
-  if(millis()-sonSesZamani > b){ bip(100); sonSesZamani=millis(); } // 100ms dolu/net bip
+  unsigned b = (v<1.2f) ? 500 : (v<2.1f ? 350 : 220); // dolu bip icin aralik (hizlanan)
+  if(millis()-sonSesZamani > b){ bip(160); sonSesZamani=millis(); } // 160ms TOK/uzun bip
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
