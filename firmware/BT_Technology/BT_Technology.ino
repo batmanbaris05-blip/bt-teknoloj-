@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v45"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v46"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4495,8 +4495,8 @@ void ionicSesGuncelle(int kademe, float v){
     bzBitis=0; ionicSurekli=true; return;
   }
   if(ionicSurekli){ bipSus(); ionicSurekli=false; sonSesZamani=millis(); }
-  unsigned b = (v<1.2f) ? 400 : (v<2.1f ? 180 : 80); // aralik: zayif/orta/guclu
-  if(millis()-sonSesZamani > b){ bip(40); sonSesZamani=millis(); } // her bip 40ms
+  unsigned b = (v<1.2f) ? 500 : (v<2.1f ? 300 : 180); // net bip icin aralik (hizlanan)
+  if(millis()-sonSesZamani > b){ bip(100); sonSesZamani=millis(); } // 100ms dolu/net bip
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
@@ -4628,7 +4628,12 @@ void baslikCiz(){
   display.setFont();
   display.setTextColor(0x07FF,ST77XX_BLACK);
   display.setCursor(tx,8); display.print("TECHNOLOGY");
-  display.setTextColor(0x8410,ST77XX_BLACK);display.setCursor(136,2);display.print(SURUM); // surum (sag ust)
+  display.setTextColor(0x8410,ST77XX_BLACK);display.setCursor(96,2);display.print(SURUM); // surum (pilin soluna)
+  { int pct=(sonPct<0)?100:sonPct; uint16_t pr=pct>50?0x07E0:(pct>20?0xFFE0:0xF800); // PIL ikonu her cizimde (cached %)
+    display.drawRect(136,2,20,8,ST77XX_WHITE);
+    display.fillRect(137,3,map(pct,0,100,0,18),6,pr);
+    display.fillRect(137+map(pct,0,100,0,18),3,18-map(pct,0,100,0,18),6,ST77XX_BLACK);
+    display.fillRect(156,4,3,4,ST77XX_WHITE); }
   display.drawFastHLine(0,19,160,0x2104);
 }
 
