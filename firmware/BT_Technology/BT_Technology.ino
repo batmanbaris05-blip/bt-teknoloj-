@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v44"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v45"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4488,22 +4488,15 @@ bool ionicSurekli=false;
 unsigned long ionicTailBitis=0; // (kullanilmiyor) eski kuyruk degiskeni
 int ionicImza=-1; // HETELEME: IONIC'e girince "tok-tok-tok" imza sesi (yeni yazilim calisiyor mu kontrolu)
 void ionicSesGuncelle(int kademe, float v){
-  if(kademe==0){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
-  // ===== 3 KADEME: tik 100ms; K1 arasi uzun, K2 hizlanan, K3 kesintisiz =====
-  // KADEME 3 (cok guclu): kesintisiz surekli ton (histerezis 2.8V)
-  if(kademe==3 || (ionicSurekli && v>=2.8f)){
+  // ===== "Guzel" ses (eski koddan): 40ms bip; zayif 400, orta 180, guclu 80 ms; >=2.6V kesintisiz =====
+  if(kademe==0 || v<0.5f){ if(ionicSurekli||bzBitis) bipSus(); ionicSurekli=false; return; }
+  if(v>=2.6f){ // cok guclu -> kesintisiz ton
     if(!ionicSurekli || digitalRead(buzzerPin)==LOW) digitalWrite(buzzerPin,HIGH);
     bzBitis=0; ionicSurekli=true; return;
   }
   if(ionicSurekli){ bipSus(); ionicSurekli=false; sonSesZamani=millis(); }
-  unsigned periyot;
-  if(kademe==1){            // KADEME 1 (zayif): tik-tik arasi UZUN
-    periyot=600;
-  }else{                    // KADEME 2 (guclu): hizlanan tik (220 -> 120 ms)
-    float n2=constrain((v-1.5f)/1.5f,0.0f,1.0f);
-    periyot=(unsigned)(220-100*n2);
-  }
-  if(millis()-sonSesZamani>=periyot){ bip(100); sonSesZamani=millis(); } // her tik 100ms
+  unsigned b = (v<1.2f) ? 400 : (v<2.1f ? 180 : 80); // aralik: zayif/orta/guclu
+  if(millis()-sonSesZamani > b){ bip(40); sonSesZamani=millis(); } // her bip 40ms
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
@@ -5226,7 +5219,7 @@ void loop(){
     else{frekansUret(0);bipSus();ionicSurekli=false;anaMod=(anaMod==0)?menuSecim:0;suankiHane=0;manuelGirisBitti=false;}
     tik();ekraniCiz(false);}    // buton: sadece kisa 'tik'
   if(anaMod==1){
-    if(ionicImza!=1){ ionicImza=1; bipBekle(95);delay(90);bipBekle(95);delay(90);bipBekle(95); } // HETELEME imzasi: girince tok-tok-tok
+    if(ionicImza!=1){ ionicImza=1; } // (heteleme giris imzasi kaldirildi)
     suzulmusVoltaj=(suzulmusVoltaj*0.75f)+(max(0.0f,((analogRead(sensorPin)*3.3f)/4095.0f)-0.2f)*0.25f); // taban 0.75 -> 0.2: tavan artik 3.1V'a kadar cikabiliyor, 3.0V kademesine ulasilabiliyor
     float lrlKalibreliV = max(0.0f, suzulmusVoltaj - groundOffset); // kalibrasyon (zemin sifirlama) artik gercekten uygulaniyor
     // 3 KADEME SES: zayif=hizlanan bip, guclu=hizlanan kesik, cok guclu=surekli
