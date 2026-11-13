@@ -48,6 +48,15 @@ jobs:
           cp "build_uzaktan/BT_Technology_UZAKTAN.ino.bin" "BT_Technology_UZAKTAN.ino.bin"
           echo "UZAKTAN bin:"; wc -c < BT_Technology_UZAKTAN.ino.bin
 
+      - name: Derle - PASIF (pasif buzzer, Oktion tarzi VLF ses)
+        run: |
+          arduino-cli compile \
+            --fqbn "esp32:esp32:esp32s3:PartitionScheme=min_spiffs" \
+            --output-dir build_pasif \
+            firmware/BT_Technology_PASIF
+          cp "build_pasif/BT_Technology_PASIF.ino.bin" "BT_Technology_PASIF.ino.bin"
+          echo "PASIF bin:"; wc -c < BT_Technology_PASIF.ino.bin
+
       - name: Surum etiketini oku
         id: ver
         run: |
@@ -63,3 +72,4 @@ jobs:
           files: |
             BT_Technology.ino.bin
             BT_Technology_UZAKTAN.ino.bin
+            BT_Technology_PASIF.ino.bin
