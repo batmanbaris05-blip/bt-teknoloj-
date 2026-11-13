@@ -7,8 +7,10 @@
 #include <LittleFS.h>
 #include <Update.h>  // OTA kablosuz guncelleme
 #include <ArduinoOTA.h>  // Arduino IDE uzerinden kablosuz yukleme (ag portu)
+#include <Preferences.h>  // NVS kalici hafiza — IONIC ton ayari kapatinca silinmez
 #include <Fonts/FreeSansBold9pt7b.h>   // Adafruit GFX ile gelir — yumusak kenarli yazi
 #include <Fonts/FreeSansBold12pt7b.h>
+Preferences prefs;  // kalici ayarlar (ionicHz)
 // BT TECHNOLOGY - ESP32-S3 Mini
 
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
@@ -4472,10 +4474,11 @@ String otaHataSebep(){
 // Buzzer kendi tonunu uretir; ESP32 sadece ac/kapa yapar (GPIO7 -> transistor/MOSFET -> 5V buzzer).
 // tone() KULLANILMAZ: aktif buzzer'a frekans gondermek sesi bozar.
 unsigned long bzBitis=0;
-// IONIC hedef tonu: kullanici telefon onizlemesinde sectigi deger (perde 1120 Hz, tinlama 2)
-#define IONIC_HZ 1120
+// IONIC hedef tonu: tekerlekle ayarlanir (400..2000 Hz), NVS'e kaydedilir. Baslangic 1120 Hz.
+int ionicHz=1120;
 bool ionicAcik=false;            // 3 kademe bip: su an ton acik mi
 unsigned long ionicFazBitis=0;   // mevcut ac/kapa fazinin bitis zamani
+void ionicHzKaydet(){ prefs.putInt("ionicHz", ionicHz); } // kalici hafizaya yaz
 void bip(unsigned ms){ tone(buzzerPin,2000); bzBitis=millis()+ms; if(bzBitis==0)bzBitis=1; } // PASIF: tone
 void bipBekle(unsigned ms){ tone(buzzerPin,2000); delay(ms); noTone(buzzerPin); bzBitis=0; }
 void bipSus(){ noTone(buzzerPin); bzBitis=0; ionicAcik=false; ionicFazBitis=0; }
@@ -4494,7 +4497,7 @@ void ionicSesGuncelle(int kademe, float v){
   // ===== PASIF BUZZER — sabit perde 1120 Hz, kademe = ritim =====
   if(kademe==0){ if(ionicSurekli||ionicAcik){ noTone(buzzerPin); } ionicSurekli=false; ionicAcik=false; ionicFazBitis=0; return; }
   if(kademe>=3){ // guclu: kesintisiz ton
-    if(!ionicSurekli){ tone(buzzerPin,IONIC_HZ); ionicSurekli=true; ionicAcik=true; ionicFazBitis=0; }
+    if(!ionicSurekli){ tone(buzzerPin,ionicHz); ionicSurekli=true; ionicAcik=true; ionicFazBitis=0; }
     return;
   }
   // kademe 1 / 2: ac-kapa bip (bloklamadan, millis ile)
@@ -4504,7 +4507,7 @@ void ionicSesGuncelle(int kademe, float v){
   unsigned long now=millis();
   if(now>=ionicFazBitis){
     if(ionicAcik){ noTone(buzzerPin); ionicAcik=false; ionicFazBitis=now+off; }
-    else         { tone(buzzerPin,IONIC_HZ); ionicAcik=true;  ionicFazBitis=now+on;  }
+    else         { tone(buzzerPin,ionicHz); ionicAcik=true;  ionicFazBitis=now+on;  }
   }
 }
 
@@ -4758,7 +4761,7 @@ void ekraniCiz(bool radarGoster=true){
     static const uint16_t ACIK[3]={0x07E0,0xFFE0,ST77XX_RED};
     static const uint16_t SONUK[3]={0x01A0,0x2940,0x2800};
     const uint16_t GRI=0x8410, CIZGI=0x2104;
-    static int sonSeviye=-1, sonTepeSeviye=-1, sonYuzde=-1;
+    static int sonSeviye=-1, sonTepeSeviye=-1, sonYuzde=-1, sonIonicCiz=-1;
     static float tepe=0, sonEsikCiz=-1;
     static unsigned long tepeZamani=0;
     float gv=max(0.0f, suzulmusVoltaj-groundOffset);
@@ -4769,7 +4772,7 @@ void ekraniCiz(bool radarGoster=true){
 
     if(!lrlBaslatildi){
       baslikCiz();
-      sonSeviye=-1; sonTepeSeviye=-1; sonYuzde=-1; sonEsikCiz=-1; tepe=0;
+      sonSeviye=-1; sonTepeSeviye=-1; sonYuzde=-1; sonEsikCiz=-1; sonIonicCiz=-1; tepe=0;
       lrlBaslatildi=true;
     }
 
@@ -4809,6 +4812,25 @@ void ekraniCiz(bool radarGoster=true){
       int x=121-yuzdeGenislik(yazi)/2;
       yuzdeYaz(yazi,x,renk);
       strcpy(sonYazi,yazi); sonX=x; sonYuzde=yuzde;
+    }
+
+    // TON gostergesi — tekerlekle ayarlanan perde; sadece degisince cizilir (alt sol)
+    if(ionicHz!=sonIonicCiz){
+      display.fillRect(2,97,92,28,ST77XX_BLACK);
+      display.drawRect(2,97,92,28,0x05CA);              // koyu yesil cerceve
+      display.setTextSize(1);
+      display.setFont();                                 // kucuk font
+      display.setTextColor(GRI,ST77XX_BLACK);
+      display.setCursor(7,101);display.print("TON");
+      display.setFont(&FreeSansBold12pt7b);              // buyuk rakam
+      display.setTextColor(0x07E0);
+      char tb[8]; snprintf(tb,sizeof(tb),"%d",ionicHz);
+      display.setCursor(7,120);display.print(tb);
+      int cx=display.getCursorX();
+      display.setFont();
+      display.setTextColor(0x07FF,ST77XX_BLACK);
+      display.setCursor(cx+2,114);display.print("Hz");
+      sonIonicCiz=ionicHz;
     }
 
   }else if(anaMod==2||(anaMod==3&&manuelGirisBitti)){
@@ -5062,6 +5084,9 @@ void acilisBT(int ts, uint16_t faceCol){
 void setup(){
   Serial.begin(115200);
   LittleFS.begin(true); // true = format if mount fails (first boot)
+  prefs.begin("bt", false);                       // NVS ac (okuma+yazma)
+  ionicHz = prefs.getInt("ionicHz", 1120);        // kayitli ton; yoksa 1120
+  ionicHz = constrain(ionicHz, 400, 2000);        // guvenlik siniri
   pinMode(pinCLK,INPUT_PULLUP);pinMode(pinDT,INPUT_PULLUP);pinMode(pinSW,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinCLK),encoderISR,CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinDT),encoderISR,CHANGE);
@@ -5188,7 +5213,8 @@ void loop(){
     bool sagaMi=tikler>0;
     
     // Menu gecis sesi — EN ESKI HALI: sonar gibi "dit dit dit" (orijinal koddaki gibi)
-    if(!ionicSurekli){
+    // IONIC modunda (anaMod==1) calmaz; orada tekerlek = TON ayari, geri bildirim asagida.
+    if(!ionicSurekli && anaMod!=1){
       for(int s=0; s<3; s++){
         tone(buzzerPin, 1800, 40);  // 40ms kisa ses
         delay(50);                   // 50ms bekleme
@@ -5196,20 +5222,23 @@ void loop(){
       noTone(buzzerPin);
       pinMode(buzzerPin,OUTPUT); digitalWrite(buzzerPin,LOW); // tone() sonrasi pini normal cikisa al
     }
-    
+
     for(int i=0;i<adim;i++){
       if(sagaMi){
         if(anaMod==0)menuSecim=constrain(menuSecim+1,1,4);
+        else if(anaMod==1)ionicHz=constrain(ionicHz+40,400,2000);   // IONIC: ton incelir (+40 Hz)
         else if(anaMod==2)metalSecim=(metalSecim+1)%11;
         else if(anaMod==3&&!manuelGirisBitti)serbestRakamlar[suankiHane]=(serbestRakamlar[suankiHane]+1+10)%10;
         else if(anaMod==4){esikVoltaj=constrain(esikVoltaj+0.10,0.10,3.00);esikVoltaj=round(esikVoltaj*10)/10.0;}
       }else{
         if(anaMod==0)menuSecim=constrain(menuSecim-1,1,4);
+        else if(anaMod==1)ionicHz=constrain(ionicHz-40,400,2000);   // IONIC: ton kalinlasir (-40 Hz)
         else if(anaMod==2)metalSecim=(metalSecim+10)%11;
         else if(anaMod==3&&!manuelGirisBitti)serbestRakamlar[suankiHane]=(serbestRakamlar[suankiHane]+9)%10;
         else if(anaMod==4){esikVoltaj=constrain(esikVoltaj-0.10,0.10,3.00);esikVoltaj=round(esikVoltaj*10)/10.0;}
       }
     }
+    if(anaMod==1){ ionicHzKaydet(); tone(buzzerPin,ionicHz,120); } // IONIC: kalici kaydet + yeni perdede kisa bip (duyarak ayarla)
     ekraniCiz(false);
   }
 
