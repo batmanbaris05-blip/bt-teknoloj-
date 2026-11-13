@@ -14,7 +14,7 @@
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v47-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v48-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4472,28 +4472,40 @@ String otaHataSebep(){
 // Buzzer kendi tonunu uretir; ESP32 sadece ac/kapa yapar (GPIO7 -> transistor/MOSFET -> 5V buzzer).
 // tone() KULLANILMAZ: aktif buzzer'a frekans gondermek sesi bozar.
 unsigned long bzBitis=0;
+// IONIC hedef tonu: kullanici telefon onizlemesinde sectigi deger (perde 1120 Hz, tinlama 2)
+#define IONIC_HZ 1120
+bool ionicAcik=false;            // 3 kademe bip: su an ton acik mi
+unsigned long ionicFazBitis=0;   // mevcut ac/kapa fazinin bitis zamani
 void bip(unsigned ms){ tone(buzzerPin,2000); bzBitis=millis()+ms; if(bzBitis==0)bzBitis=1; } // PASIF: tone
 void bipBekle(unsigned ms){ tone(buzzerPin,2000); delay(ms); noTone(buzzerPin); bzBitis=0; }
-void bipSus(){ noTone(buzzerPin); bzBitis=0; }
+void bipSus(){ noTone(buzzerPin); bzBitis=0; ionicAcik=false; ionicFazBitis=0; }
 // Menu/buton sesi: fare tiki gibi kisacik "tik". Hemen kendi icinde kapanir —
 // arkasindan gelen ekran cizimi (yavas) sesi uzatamaz.
 void tik(){ tone(buzzerPin,1500); delay(TIK_MS); noTone(buzzerPin); bzBitis=0; }
 void bipKontrol(){ if(bzBitis && (long)(millis()-bzBitis)>=0) bipSus(); }
 
-// IONIC ses deseni (sinyal arttikca kademe icinde de hizlanir):
-//  kademe 1 (zayif)      : normal bip, aralik 2000 -> 350 ms
-//  kademe 2 (guclu)      : kesik kesik, aralik 220 -> 70 ms
-//  kademe 3 (cok guclu)  : kesintisiz ses
+// IONIC ses deseni — kullanici onayi: perde 1120 Hz, 3 kademe (bloklamayan zamanlama):
+//  kademe 1 (zayif, esik..1.5V)   : yavas bip  — 100 ms ac / 100 ms kapa
+//  kademe 2 (orta, 1.5..3.0V)     : hizli bip  — 50 ms ac / 50 ms kapa
+//  kademe 3 (guclu, >3.0V)        : kesintisiz 1120 Hz ton
 bool ionicSurekli=false;
-unsigned long ionicTailBitis=0; // (kullanilmiyor) eski kuyruk degiskeni
-int ionicImza=-1; // HETELEME: IONIC'e girince "tok-tok-tok" imza sesi (yeni yazilim calisiyor mu kontrolu)
+int ionicImza=-1; // (kullanilmiyor)
 void ionicSesGuncelle(int kademe, float v){
-  // ===== PASIF BUZZER — Oktion tarzi VLF: perde sinyale gore 300->560 Hz =====
-  if(kademe==0){ noTone(buzzerPin); ionicSurekli=false; return; }
-  float gd=constrain((v-esikVoltaj)/(3.1f-esikVoltaj),0.0f,1.0f); // 0=esikte .. 1=cok guclu
-  int frq=300+(int)(260.0f*gd);  // 300 Hz (zayif) -> 560 Hz (cok guclu)
-  tone(buzzerPin,frq);           // surekli ton, perde hedefe gore (wiiup)
-  ionicSurekli=true;
+  // ===== PASIF BUZZER — sabit perde 1120 Hz, kademe = ritim =====
+  if(kademe==0){ if(ionicSurekli||ionicAcik){ noTone(buzzerPin); } ionicSurekli=false; ionicAcik=false; ionicFazBitis=0; return; }
+  if(kademe>=3){ // guclu: kesintisiz ton
+    if(!ionicSurekli){ tone(buzzerPin,IONIC_HZ); ionicSurekli=true; ionicAcik=true; ionicFazBitis=0; }
+    return;
+  }
+  // kademe 1 / 2: ac-kapa bip (bloklamadan, millis ile)
+  if(ionicSurekli){ ionicSurekli=false; ionicAcik=false; ionicFazBitis=0; } // surekliden ciktik
+  unsigned on  = (kademe==1)?100:50;
+  unsigned off = (kademe==1)?100:50;
+  unsigned long now=millis();
+  if(now>=ionicFazBitis){
+    if(ionicAcik){ noTone(buzzerPin); ionicAcik=false; ionicFazBitis=now+off; }
+    else         { tone(buzzerPin,IONIC_HZ); ionicAcik=true;  ionicFazBitis=now+on;  }
+  }
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
