@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v49-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v50-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5160,8 +5160,7 @@ void setup(){
    display.setFont();
    display.setTextColor(ST77XX_WHITE,ST77XX_BLACK);
    display.setTextSize(1);display.setCursor(48,90);display.print("TECHNOLOGY");
-   display.setTextColor(0x07FF,ST77XX_BLACK);display.setCursor(34,118);display.print(SURUM " OTA TEST ");
-   display.setTextColor(ST77XX_WHITE,ST77XX_BLACK);
+   // "OTA TEST" alt yazisi kaldirildi (daha temiz acilis) — surum zaten normal baslikta gorunuyor
    display.drawRect(28,104,104,8,ST77XX_WHITE);
    display.fillCircle(80,46,36,ST77XX_WHITE); // beyaz daire
 
