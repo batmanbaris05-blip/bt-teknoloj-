@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v48-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v49-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5165,31 +5165,19 @@ void setup(){
    display.drawRect(28,104,104,8,ST77XX_WHITE);
    display.fillCircle(80,46,36,ST77XX_WHITE); // beyaz daire
 
-   unsigned long animBasla=millis();
-   const unsigned long ANIM_SURE=3000; // toplam gorunur acilis suresi (3 sn)
-   // Melodi (eski arpej) — acilis boyunca SURGUN dongu: bitince bastan calar
-   int notalar[]={440,554,659,880,1109,1319,1760};
-   int sure[]   ={90, 90, 90, 90, 90,  90,  200};
-   int boyut[]  ={1,  2,  3,  4,  5,  5,   5};  // ilk turda BT kademe kademe buyur
-   // 1) ILK TUR: BT en ufaktan buyur + melodi ilk gecis
-   for(int i=0;i<7;i++){
-     tone(buzzerPin,notalar[i],sure[i]);
-     acilisBT(boyut[i], (i==6)?0xAFFF:0x07FF);                 // son notada parlak flash
-     float fr=(millis()-animBasla)/(float)ANIM_SURE; if(fr>1)fr=1;
+   // ESKI BT ACILIS SESI: yukselen supurme 1000 -> 2000 Hz (eski koddaki gibi: 21 adim, tone 20ms / adim 50ms, ~1 sn)
+   // Gorsel AYNI: BT en ufaktan buyur + alt ilerleme cubugu dolar.
+   const int ADIM=21;
+   for(int i=0;i<ADIM;i++){
+     int frq=1000 + i*50;                       // 1000 -> 2000 Hz (yukselen wiiip)
+     tone(buzzerPin,frq,20);                     // kisa 20ms ton
+     int bo = 1 + (i*4)/(ADIM-1);                // BT 1 -> 5 kademe kademe buyur
+     acilisBT(bo, (i==ADIM-1)?0xAFFF:0x07FF);     // son adimda parlak flash
+     float fr=(float)i/(ADIM-1);
      display.fillRect(29,105,(int)(100*fr),6,0x07FF);
-     delay(sure[i]+25);
+     delay(50);
    }
    acilisBT(5,0x07FF);  // BT neon haline otur (tam daireyi kaplar)
-   // 2) KALAN SURE: melodiyi BASTAN AL (loop) — ses 3.5 sn boyunca hic susmaz
-   int ni=0;
-   while(millis()-animBasla < ANIM_SURE){
-     int d=sure[ni];
-     tone(buzzerPin,notalar[ni],d);
-     float fr=(millis()-animBasla)/(float)ANIM_SURE; if(fr>1)fr=1;
-     display.fillRect(29,105,(int)(100*fr),6,0x07FF);
-     ni++; if(ni>=7) ni=0;       // melodi bitti -> bastan
-     delay(d+25);
-   }
    noTone(buzzerPin);
    pinMode(buzzerPin,OUTPUT); digitalWrite(buzzerPin,LOW);
    display.fillRect(29,105,100,6,0x07FF);
