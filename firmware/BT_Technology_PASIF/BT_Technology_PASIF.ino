@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v50-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v51-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -4487,28 +4487,22 @@ void bipSus(){ noTone(buzzerPin); bzBitis=0; ionicAcik=false; ionicFazBitis=0; }
 void tik(){ tone(buzzerPin,1500); delay(TIK_MS); noTone(buzzerPin); bzBitis=0; }
 void bipKontrol(){ if(bzBitis && (long)(millis()-bzBitis)>=0) bipSus(); }
 
-// IONIC ses deseni — kullanici onayi: perde 1120 Hz, 3 kademe (bloklamayan zamanlama):
-//  kademe 1 (zayif, esik..1.5V)   : yavas bip  — 100 ms ac / 100 ms kapa
-//  kademe 2 (orta, 1.5..3.0V)     : hizli bip  — 50 ms ac / 50 ms kapa
-//  kademe 3 (guclu, >3.0V)        : kesintisiz 1120 Hz ton
+// IONIC ses deseni — ESKI KLASIK (kullanici onayi): tek perde (ionicHz, tekerlekle ayarli),
+// 40 ms bip, sinyal arttikca hizlanir, cok guclude kesintisiz:
+//  esik alti            : sessiz
+//  esik..1.2V (zayif)   : 40ms bip, her 400 ms
+//  1.2..2.1V (orta)     : 40ms bip, her 180 ms
+//  2.1..2.6V (guclu)    : 40ms bip, her  80 ms
+//  >=2.6V (cok guclu)   : kesintisiz ton
 bool ionicSurekli=false;
 int ionicImza=-1; // (kullanilmiyor)
 void ionicSesGuncelle(int kademe, float v){
-  // ===== PASIF BUZZER — sabit perde 1120 Hz, kademe = ritim =====
-  if(kademe==0){ if(ionicSurekli||ionicAcik){ noTone(buzzerPin); } ionicSurekli=false; ionicAcik=false; ionicFazBitis=0; return; }
-  if(kademe>=3){ // guclu: kesintisiz ton
-    if(!ionicSurekli){ tone(buzzerPin,ionicHz); ionicSurekli=true; ionicAcik=true; ionicFazBitis=0; }
-    return;
-  }
-  // kademe 1 / 2: ac-kapa bip (bloklamadan, millis ile)
-  if(ionicSurekli){ ionicSurekli=false; ionicAcik=false; ionicFazBitis=0; } // surekliden ciktik
-  unsigned on  = (kademe==1)?100:50;
-  unsigned off = (kademe==1)?100:50;
-  unsigned long now=millis();
-  if(now>=ionicFazBitis){
-    if(ionicAcik){ noTone(buzzerPin); ionicAcik=false; ionicFazBitis=now+off; }
-    else         { tone(buzzerPin,ionicHz); ionicAcik=true;  ionicFazBitis=now+on;  }
-  }
+  // ===== ESKI KLASIK — tek perde ionicHz, 40ms bip, voltaja gore hizlanir =====
+  if(kademe==0){ if(ionicSurekli){ noTone(buzzerPin); ionicSurekli=false; } ionicAcik=false; return; } // esik alti: sessiz
+  if(v>=2.6f){ if(!ionicSurekli){ tone(buzzerPin,ionicHz); ionicSurekli=true; } ionicAcik=false; return; } // cok guclu: kesintisiz
+  if(ionicSurekli){ noTone(buzzerPin); ionicSurekli=false; }  // surekliden cik
+  unsigned interval = (v<1.2f)?400 : (v<2.1f)?180 : 80;       // zayif->orta->guclu hizlanir
+  if(millis()-sonSesZamani >= interval){ tone(buzzerPin,ionicHz,40); sonSesZamani=millis(); } // 40ms bip
 }
 
 // Chunk boyutlu base64 decode — RAM tasarrufu
@@ -5085,8 +5079,8 @@ void setup(){
   Serial.begin(115200);
   LittleFS.begin(true); // true = format if mount fails (first boot)
   prefs.begin("bt", false);                       // NVS ac (okuma+yazma)
-  ionicHz = prefs.getInt("ionicHz", 1120);        // kayitli ton; yoksa 1120
-  ionicHz = constrain(ionicHz, 400, 2000);        // guvenlik siniri
+  ionicHz = prefs.getInt("ionicHz", 2500);        // kayitli ton; yoksa 2500 (eski klasik)
+  ionicHz = constrain(ionicHz, 400, 2800);        // guvenlik siniri
   pinMode(pinCLK,INPUT_PULLUP);pinMode(pinDT,INPUT_PULLUP);pinMode(pinSW,INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(pinCLK),encoderISR,CHANGE);
   attachInterrupt(digitalPinToInterrupt(pinDT),encoderISR,CHANGE);
@@ -5213,13 +5207,13 @@ void loop(){
     for(int i=0;i<adim;i++){
       if(sagaMi){
         if(anaMod==0)menuSecim=constrain(menuSecim+1,1,4);
-        else if(anaMod==1)ionicHz=constrain(ionicHz+40,400,2000);   // IONIC: ton incelir (+40 Hz)
+        else if(anaMod==1)ionicHz=constrain(ionicHz+40,400,2800);   // IONIC: ton incelir (+40 Hz)
         else if(anaMod==2)metalSecim=(metalSecim+1)%11;
         else if(anaMod==3&&!manuelGirisBitti)serbestRakamlar[suankiHane]=(serbestRakamlar[suankiHane]+1+10)%10;
         else if(anaMod==4){esikVoltaj=constrain(esikVoltaj+0.10,0.10,3.00);esikVoltaj=round(esikVoltaj*10)/10.0;}
       }else{
         if(anaMod==0)menuSecim=constrain(menuSecim-1,1,4);
-        else if(anaMod==1)ionicHz=constrain(ionicHz-40,400,2000);   // IONIC: ton kalinlasir (-40 Hz)
+        else if(anaMod==1)ionicHz=constrain(ionicHz-40,400,2800);   // IONIC: ton kalinlasir (-40 Hz)
         else if(anaMod==2)metalSecim=(metalSecim+10)%11;
         else if(anaMod==3&&!manuelGirisBitti)serbestRakamlar[suankiHane]=(serbestRakamlar[suankiHane]+9)%10;
         else if(anaMod==4){esikVoltaj=constrain(esikVoltaj-0.10,0.10,3.00);esikVoltaj=round(esikVoltaj*10)/10.0;}
