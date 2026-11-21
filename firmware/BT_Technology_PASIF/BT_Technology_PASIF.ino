@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v51-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v52-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5189,6 +5189,10 @@ void loop(){
   tikler=encTikKuyrugu;
   encTikKuyrugu=0;
   interrupts();
+  // Encoder EMI/parazit korumasi: iki detent arasi 4ms'den kisaysa (insan eli bu kadar
+  // hizli ceviremez) gurultu kabul edip yok say. Gercek cevirmede detentler >30ms aralikli.
+  static unsigned long sonDetentZ=0;
+  if(tikler!=0){ if(millis()-sonDetentZ<4){ tikler=0; } else { sonDetentZ=millis(); } }
   if(tikler!=0 && !webBagliMi){
     int adim=abs(tikler);
     bool sagaMi=tikler>0;
@@ -5226,10 +5230,18 @@ void loop(){
   server.handleClient();baglantiKontrol();
   if(webBagliMi){if(millis()-sonEkranZamani>2000){ekraniCiz();sonEkranZamani=millis();}yield();return;}
 
-  static bool sonButon=HIGH;
-  bool buton=digitalRead(pinSW);
-  bool basildi=(buton==LOW && sonButon==HIGH && millis()-sonButonZamani>200); // sadece BASILDIGI AN bir kez — basili tutunca tekrar tekrar tetiklemez
-  sonButon=buton;
+  // Buton: GUCLU debounce — parazit sicramasini reddeder.
+  // Buton 35 ms boyunca STABIL (kesintisiz) LOW kalmadan "basildi" sayilmaz;
+  // boylece milisaniyelik gurultu LOW'lari modu degistiremez.
+  static bool sonButonHam=HIGH, butonKararli=HIGH;
+  static unsigned long butonDegisZamani=0;
+  bool butonHam=digitalRead(pinSW);
+  if(butonHam!=sonButonHam){ sonButonHam=butonHam; butonDegisZamani=millis(); } // ham degisim -> sayaci sifirla
+  bool basildi=false;
+  if(millis()-butonDegisZamani>35 && butonHam!=butonKararli){   // 35ms stabil kaldiysa gecerli gec
+    butonKararli=butonHam;
+    if(butonKararli==LOW && millis()-sonButonZamani>200) basildi=true; // sadece stabil LOW'a GECIS aninda bir kez
+  }
   if(basildi){sonButonZamani=millis();
     if(anaMod==3&&!manuelGirisBitti){
       suankiHane++;
