@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v53-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v54-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5081,9 +5081,9 @@ void acilisSabit(int parlaX){
   display.fillCircle(80,44,36,ST77XX_WHITE);          // beyaz daire
   display.setTextSize(5);
   int cx=80-30, cy=44-20;                              // "BT" (ts=5) ortala
-  display.setTextColor(0x8410);                        // gri golge
+  display.setTextColor(0x4208);                        // koyu gri golge (3D derinlik)
   display.setCursor(cx+2,cy+2);display.print("BT");
-  display.setTextColor(ST77XX_BLACK);                  // SIYAH BT (sabit, belirgin)
+  display.setTextColor(0x07E0);                        // YESIL BT (daire beyaz kalir)
   display.setCursor(cx,cy);display.print("BT");
   if(parlaX>=46 && parlaX<=114){                       // parlama bandi (daire ici)
     display.drawFastVLine(parlaX-1,14,62,0x6E7F);
