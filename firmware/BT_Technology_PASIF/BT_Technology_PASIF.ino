@@ -16,7 +16,7 @@ Preferences prefs;  // kalici ayarlar (ionicHz)
 // ===== AYAR: menu / buton "tik" sesi suresi (milisaniye) =====
 // 12V aktif buzzer ~10 ms altindaki farklari duyurmaz; 12-25 arasi deneyebilirsin.
 #define TIK_MS 12
-#define SURUM "v52-P"  // ekranda gorunen surum (OTA testinde degisir)
+#define SURUM "v53-P"  // ekranda gorunen surum (OTA testinde degisir)
 static const char INDEX_B64[] PROGMEM =
   "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InRyIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVU"
   "Ri04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxp"
@@ -5075,6 +5075,23 @@ void acilisBT(int ts, uint16_t faceCol){
   display.setCursor(cx,cy);display.print("BT");
   display.setTextColor(ST77XX_WHITE,ST77XX_BLACK);display.setTextSize(1);
 }
+// YENI ACILIS: BT SABIT en buyuk + gri golge (3D) beyaz daire icinde;
+// parlaX gecerliyse uzerinden dikey "parlama" bandi gecer (gecersiz=-1 -> bandsiz).
+void acilisSabit(int parlaX){
+  display.fillCircle(80,44,36,ST77XX_WHITE);          // beyaz daire
+  display.setTextSize(5);
+  int cx=80-30, cy=44-20;                              // "BT" (ts=5) ortala
+  display.setTextColor(0x8410);                        // gri golge
+  display.setCursor(cx+2,cy+2);display.print("BT");
+  display.setTextColor(ST77XX_BLACK);                  // SIYAH BT (sabit, belirgin)
+  display.setCursor(cx,cy);display.print("BT");
+  if(parlaX>=46 && parlaX<=114){                       // parlama bandi (daire ici)
+    display.drawFastVLine(parlaX-1,14,62,0x6E7F);
+    display.drawFastVLine(parlaX  ,12,66,0xAFFF);
+    display.drawFastVLine(parlaX+1,14,62,0xDFFF);
+  }
+  display.setTextColor(ST77XX_WHITE,ST77XX_BLACK);display.setTextSize(1);
+}
 void setup(){
   Serial.begin(115200);
   LittleFS.begin(true); // true = format if mount fails (first boot)
@@ -5158,22 +5175,25 @@ void setup(){
    display.drawRect(28,104,104,8,ST77XX_WHITE);
    display.fillCircle(80,46,36,ST77XX_WHITE); // beyaz daire
 
-   // ESKI BT ACILIS SESI: yukselen supurme 1000 -> 2000 Hz (eski koddaki gibi: 21 adim, tone 20ms / adim 50ms, ~1 sn)
-   // Gorsel AYNI: BT en ufaktan buyur + alt ilerleme cubugu dolar.
-   const int ADIM=21;
-   for(int i=0;i<ADIM;i++){
-     int frq=1000 + i*50;                       // 1000 -> 2000 Hz (yukselen wiiip)
-     tone(buzzerPin,frq,20);                     // kisa 20ms ton
-     int bo = 1 + (i*4)/(ADIM-1);                // BT 1 -> 5 kademe kademe buyur
-     acilisBT(bo, (i==ADIM-1)?0xAFFF:0x07FF);     // son adimda parlak flash
-     float fr=(float)i/(ADIM-1);
-     display.fillRect(29,105,(int)(100*fr),6,0x07FF);
-     delay(50);
+   // YENI ACILIS SESI (#4): ARALIKLI yukselen darbeler + iki onay. BT sabit buyuk, uzerinden parlama gecer.
+   int NOTA[6]={1000,1150,1320,1520,1750,2000};
+   for(int i=0;i<6;i++){
+     tone(buzzerPin,NOTA[i],55);                 // 55ms darbe
+     for(int s=0;s<2;s++){                        // her darbede 2 parlama karesi (yumusak)
+       int idx=i*2+s;                             // 0..11
+       int px = 46 + idx*(114-46)/13;             // parlama soldan saga
+       acilisSabit(px);
+       display.fillRect(29,105,(int)(100.0*(idx+1)/16.0),6,0x07FF);
+       delay(70);                                 // darbe araligi ~140ms (ferah, tik-tik degil)
+     }
    }
-   acilisBT(5,0x07FF);  // BT neon haline otur (tam daireyi kaplar)
+   // iki onay "cin cin"
+   tone(buzzerPin,1760,95);  acilisSabit(100); display.fillRect(29,105,(int)(100.0*13/16.0),6,0x07FF); delay(200);
+   tone(buzzerPin,2093,200); acilisSabit(114); display.fillRect(29,105,100,6,0x07FF);                 delay(250);
    noTone(buzzerPin);
-   pinMode(buzzerPin,OUTPUT); digitalWrite(buzzerPin,LOW);
+   acilisSabit(-1);           // son: BT sabit, parlamasiz
    display.fillRect(29,105,100,6,0x07FF);
+   pinMode(buzzerPin,OUTPUT); digitalWrite(buzzerPin,LOW);
    anaMod=0;
    ekraniCiz();}
 
